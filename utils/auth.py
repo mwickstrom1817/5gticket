@@ -82,6 +82,17 @@ def check_login():
             else:
                 st.error("Invalid credentials. Access denied.")
 
+        # Forgot password link
+        st.markdown("""
+            <div style="text-align:center; margin-top:0.75rem;">
+                <a href="?forgot_password=1" style="font-family:'DM Mono',monospace;
+                   font-size:0.72rem; color:#555; letter-spacing:1px;
+                   text-decoration:none;">
+                   Forgot your password?
+                </a>
+            </div>
+        """, unsafe_allow_html=True)
+
     st.markdown("</div>", unsafe_allow_html=True)
     st.markdown("""
         <div style="font-family:'Share Tech Mono',monospace; font-size:0.65rem;
