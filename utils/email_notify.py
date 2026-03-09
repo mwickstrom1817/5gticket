@@ -111,7 +111,7 @@ def send_ticket_status_update(ticket: dict, customer_email: str, customer_name: 
               </table>
               <hr style="margin:20px 0;">
               <p>Log in to your portal to view full details.</p>
-              <p style="color:#666; font-size:0.85rem;">5G Security | support@5gsecurity.com</p>
+              <p style="color:#666; font-size:0.85rem;">5G Security | <a href="mailto:{smtp_user}" style="color:#666;">{smtp_user}</a></p>
             </div>
           </div>
         </body></html>
