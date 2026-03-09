@@ -117,8 +117,9 @@ for t in tickets:
     else:
         resp_str = "No response yet"
 
+    auto_badge = " 🤖 AUTO" if t.get("auto_generated") else ""
     with st.expander(
-        f"#{t['id']}  //  {t['company']}  —  {t['title']}  [{t['status'].replace('_',' ').upper()}]"
+        f"#{t['id']}  //  {t['company']}  —  {t['title']}  [{t['status'].replace('_',' ').upper()}]{auto_badge}"
     ):
         # Age indicator
         st.markdown(f"""
