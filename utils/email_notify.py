@@ -132,3 +132,89 @@ def send_ticket_status_update(ticket: dict, customer_email: str, customer_name: 
     except Exception as e:
         st.warning(f"Status updated, but customer email failed: {e}")
         return False
+
+
+def send_welcome_email(to_email: str, contact_name: str, company: str, temp_password: str):
+    """Send a welcome email to a new customer with their login credentials."""
+    try:
+        smtp_host  = st.secrets["SMTP_HOST"]
+        smtp_port  = int(st.secrets.get("SMTP_PORT", 587))
+        smtp_user  = st.secrets["SMTP_USER"]
+        smtp_pass  = st.secrets["SMTP_PASSWORD"]
+        portal_url = "https://5gticket.streamlit.app"
+
+        html = f"""
+        <html><body style="font-family:Arial,sans-serif; color:#333;">
+          <div style="max-width:600px; margin:auto; border:1px solid #ddd; border-radius:8px; overflow:hidden;">
+            <div style="background:#1a1a1a; padding:24px; text-align:center;">
+              <h1 style="color:#E8000E; margin:0; font-size:1.8rem; letter-spacing:2px;">5G SECURITY</h1>
+              <p style="color:#888; margin:4px 0 0 0; font-size:0.85rem; letter-spacing:1px;">CUSTOMER PORTAL</p>
+            </div>
+            <div style="padding:32px;">
+              <p style="font-size:1.1rem;">Hi {contact_name},</p>
+              <p>Welcome to the <strong>5G Security Customer Portal</strong>! Your account has been set up and you're ready to go.</p>
+              <p>Through your portal you can:</p>
+              <ul style="line-height:2;">
+                <li>📹 View the health status of your security systems</li>
+                <li>🔧 Submit and track support tickets</li>
+                <li>💬 Communicate directly with our team</li>
+                <li>📋 View your equipment inventory</li>
+              </ul>
+
+              <div style="background:#f8f8f8; border:1px solid #e0e0e0; border-left:4px solid #E8000E;
+                          border-radius:4px; padding:20px; margin:24px 0;">
+                <p style="margin:0 0 12px 0; font-weight:bold; color:#333;">Your Login Credentials</p>
+                <table style="width:100%; border-collapse:collapse;">
+                  <tr>
+                    <td style="padding:6px 0; font-weight:bold; width:120px; color:#555;">Portal URL:</td>
+                    <td style="padding:6px 0;"><a href="{portal_url}" style="color:#E8000E;">{portal_url}</a></td>
+                  </tr>
+                  <tr>
+                    <td style="padding:6px 0; font-weight:bold; color:#555;">Email:</td>
+                    <td style="padding:6px 0;">{to_email}</td>
+                  </tr>
+                  <tr>
+                    <td style="padding:6px 0; font-weight:bold; color:#555;">Password:</td>
+                    <td style="padding:6px 0; font-family:monospace; font-size:1rem;">{temp_password}</td>
+                  </tr>
+                </table>
+              </div>
+
+              <p style="color:#888; font-size:0.85rem;">
+                We recommend changing your password after your first login.
+                If you have any issues accessing the portal, reply to this email and we'll help you out.
+              </p>
+
+              <div style="text-align:center; margin-top:28px;">
+                <a href="{portal_url}" style="background:#E8000E; color:white; padding:12px 32px;
+                   border-radius:4px; text-decoration:none; font-weight:bold; font-size:1rem;
+                   letter-spacing:1px;">
+                  Access Your Portal →
+                </a>
+              </div>
+
+              <hr style="margin:32px 0; border:none; border-top:1px solid #eee;">
+              <p style="color:#aaa; font-size:0.8rem; text-align:center; margin:0;">
+                5G Security &nbsp;|&nbsp; {company} &nbsp;|&nbsp;
+                <a href="mailto:{smtp_user}" style="color:#aaa;">Contact Us</a>
+              </p>
+            </div>
+          </div>
+        </body></html>
+        """
+
+        msg = MIMEMultipart("alternative")
+        msg["Subject"] = f"Welcome to the 5G Security Customer Portal — {company}"
+        msg["From"]    = smtp_user
+        msg["To"]      = to_email
+        msg.attach(MIMEText(html, "html"))
+
+        with smtplib.SMTP(smtp_host, smtp_port) as server:
+            server.starttls()
+            server.login(smtp_user, smtp_pass)
+            server.sendmail(smtp_user, to_email, msg.as_string())
+
+        return True
+    except Exception as e:
+        st.warning(f"Account created but welcome email failed: {e}")
+        return False
