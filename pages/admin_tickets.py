@@ -3,6 +3,7 @@ from datetime import datetime, timezone
 from utils.auth import require_role, logout as _logout
 from utils.db import fetchall, fetchone, execute
 from utils.email_notify import send_ticket_status_update
+from utils.comments import get_comments, add_comment
 from utils.theme import inject_global_css, render_sidebar, page_header, status_pill, urgency_pill
 
 inject_global_css()
