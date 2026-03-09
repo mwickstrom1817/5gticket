@@ -1,8 +1,14 @@
 import streamlit as st
-from utils.auth import require_role, create_user
+from utils.auth import require_role, create_user, logout as _logout
 from utils.db import fetchall, fetchone, execute, execute_returning
+from utils.theme import inject_global_css, render_sidebar
 
+inject_global_css()
 require_role("admin")
+
+if "user" in st.session_state:
+    render_sidebar(st.session_state["user"], _logout)
+
 
 st.title("👥 Manage Customers")
 st.markdown("---")

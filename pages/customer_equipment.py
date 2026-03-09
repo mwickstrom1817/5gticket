@@ -1,9 +1,16 @@
 import streamlit as st
 from utils.db import fetchall, fetchone
+from utils.theme import inject_global_css, render_sidebar
+from utils.auth import logout as _logout
+
+inject_global_css()
 
 if "user" not in st.session_state:
     st.warning("Please log in.")
     st.stop()
+
+if "user" in st.session_state:
+    render_sidebar(st.session_state["user"], _logout)
 
 user = st.session_state["user"]
 customer_id = user["customer_id"]
