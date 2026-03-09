@@ -35,6 +35,10 @@ if "user" not in st.session_state:
 else:
     user = st.session_state["user"]
 
+    # Force password change if flagged
+    if st.session_state.get("force_change_password"):
+        st.switch_page("pages/change_password.py")
+
     with st.sidebar:
         render_logo()
         st.markdown(f"""
