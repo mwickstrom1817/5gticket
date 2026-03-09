@@ -1,118 +1,109 @@
+import secrets
 import streamlit as st
-from utils.auth import check_login, logout
-from utils.db import init_db
-from utils.theme import inject_global_css, render_logo
+from datetime import datetime, timezone, timedelta
+from utils.db import fetchone, execute, execute_returning
 
-st.set_page_config(
-    page_title="5G Security | Customer Portal",
-    page_icon="assets/logo.png",
-    layout="wide",
-    initial_sidebar_state="expanded"
-)
 
-inject_global_css()
-init_db()
+def create_reset_token(user_id: int) -> str:
+    """Generate a secure reset token, store it, and return it."""
+    # Invalidate any existing tokens for this user
+    execute("DELETE FROM password_reset_tokens WHERE user_id = %s", (user_id,))
 
-# ── Handle Google OAuth callback ───────────────────────────────────────────────
-from utils.oauth import handle_oauth_callback
-if "code" in st.query_params:
-    if handle_oauth_callback():
-        st.switch_page("pages/admin_dashboard.py")
+    token      = secrets.token_urlsafe(32)
+    expires_at = datetime.now(timezone.utc) + timedelta(hours=1)
 
-if "user" not in st.session_state:
-    col1, col2, col3 = st.columns([1, 1.2, 1])
-    with col2:
-        st.markdown("<br><br>", unsafe_allow_html=True)
-        render_logo()
-        st.markdown("""
-            <div style="font-family:'Share Tech Mono',monospace; font-size:0.72rem;
-                        letter-spacing:2px; color:#555; text-transform:uppercase;
-                        margin-bottom:2rem;">
-                Secure Client Access Portal
+    execute(
+        "INSERT INTO password_reset_tokens (user_id, token, expires_at) VALUES (%s, %s, %s)",
+        (user_id, token, expires_at)
+    )
+    return token
+
+
+def validate_reset_token(token: str):
+    """
+    Check token is valid and not expired.
+    Returns user row if valid, None otherwise.
+    """
+    row = fetchone("""
+        SELECT prt.*, u.id as user_id, u.email, u.name, u.role
+        FROM password_reset_tokens prt
+        JOIN users u ON u.id = prt.user_id
+        WHERE prt.token = %s AND prt.expires_at > NOW()
+    """, (token,))
+    return row
+
+
+def consume_reset_token(token: str):
+    """Delete the token after use so it can't be reused."""
+    execute("DELETE FROM password_reset_tokens WHERE token = %s", (token,))
+
+
+def send_reset_email(to_email: str, name: str, token: str):
+    """Send password reset email with link."""
+    import smtplib
+    from email.mime.text import MIMEText
+    from email.mime.multipart import MIMEMultipart
+
+    try:
+        smtp_host  = st.secrets["SMTP_HOST"]
+        smtp_port  = int(st.secrets.get("SMTP_PORT", 587))
+        smtp_user  = st.secrets["SMTP_USER"]
+        smtp_pass  = st.secrets["SMTP_PASSWORD"]
+        portal_url = "https://5gticket.streamlit.app"
+
+        reset_url = f"{portal_url}?reset_token={token}"
+
+        html = f"""
+        <html><body style="font-family:Arial,sans-serif; color:#333;">
+          <div style="max-width:600px; margin:auto; border:1px solid #ddd; border-radius:8px; overflow:hidden;">
+            <div style="background:#1a1a1a; padding:24px; text-align:center;">
+              <h1 style="color:#E8000E; margin:0; font-size:1.8rem; letter-spacing:2px;">5G SECURITY</h1>
+              <p style="color:#888; margin:4px 0 0 0; font-size:0.85rem; letter-spacing:1px;">PASSWORD RESET</p>
             </div>
-        """, unsafe_allow_html=True)
-        check_login()
-else:
-    user = st.session_state["user"]
+            <div style="padding:32px;">
+              <p style="font-size:1.1rem;">Hi {name},</p>
+              <p>We received a request to reset your password for the 5G Security Customer Portal.</p>
+              <p>Click the button below to set a new password. This link expires in <strong>1 hour</strong>.</p>
 
-    # Force password change — render inline before anything else
-    if user.get("must_change_password") and user.get("role") == "customer":
-        from utils.db import execute
-        from utils.auth import update_password
-        col1, col2, col3 = st.columns([1, 1.2, 1])
-        with col2:
-            render_logo()
-            st.markdown("<br>", unsafe_allow_html=True)
-            st.markdown("### 🔒 Set Your Password")
-            st.markdown("For your security, please set a new password before continuing.")
-            with st.form("force_pw_change"):
-                new_pw     = st.text_input("New Password", type="password")
-                confirm_pw = st.text_input("Confirm Password", type="password")
-                if st.form_submit_button("Set Password & Continue", type="primary"):
-                    if not new_pw or not confirm_pw:
-                        st.error("Please fill in both fields.")
-                    elif len(new_pw) < 8:
-                        st.error("Password must be at least 8 characters.")
-                    elif new_pw != confirm_pw:
-                        st.error("Passwords don't match.")
-                    else:
-                        update_password(user["id"], new_pw)
-                        execute("UPDATE users SET must_change_password = FALSE WHERE id = %s", (user["id"],))
-                        st.session_state["user"]["must_change_password"] = False
-                        st.success("Password updated! Loading your dashboard...")
-                        st.rerun()
-        st.stop()
+              <div style="text-align:center; margin:32px 0;">
+                <a href="{reset_url}" style="background:#E8000E; color:white; padding:14px 36px;
+                   border-radius:4px; text-decoration:none; font-weight:bold; font-size:1rem;
+                   letter-spacing:1px;">
+                  Reset My Password →
+                </a>
+              </div>
 
-    with st.sidebar:
-        render_logo()
-        st.markdown(f"""
-            <div style="background:#1a1a1a; border:1px solid #2a2a2a; border-left:3px solid #E8000E;
-                        border-radius:2px; padding:10px 12px; margin-bottom:1rem;">
-                <div style="font-family:'Share Tech Mono',monospace; font-size:0.65rem;
-                            letter-spacing:2px; color:#555; text-transform:uppercase;">Logged in as</div>
-                <div style="font-family:'Rajdhani',sans-serif; font-weight:600; font-size:1rem;
-                            color:#f0f0f0; margin-top:2px;">{user['name']}</div>
-                <div style="font-family:'Share Tech Mono',monospace; font-size:0.65rem;
-                            color:#E8000E; letter-spacing:1px;">
-                    {'ADMINISTRATOR' if user['role'] == 'admin' else 'CLIENT'}
-                </div>
+              <p style="color:#888; font-size:0.85rem;">
+                If you didn't request this, you can safely ignore this email.
+                Your password will not change.
+              </p>
+              <p style="color:#aaa; font-size:0.8rem;">
+                Or copy this link into your browser:<br>
+                <a href="{reset_url}" style="color:#E8000E; word-break:break-all;">{reset_url}</a>
+              </p>
+
+              <hr style="margin:32px 0; border:none; border-top:1px solid #eee;">
+              <p style="color:#aaa; font-size:0.8rem; text-align:center; margin:0;">
+                5G Security &nbsp;|&nbsp;
+                <a href="mailto:{smtp_user}" style="color:#aaa;">Contact Us</a>
+              </p>
             </div>
-        """, unsafe_allow_html=True)
+          </div>
+        </body></html>
+        """
 
-        st.markdown('<div style="font-family:\'Share Tech Mono\',monospace; font-size:0.65rem; letter-spacing:2px; color:#444; text-transform:uppercase; padding:4px 0; margin-bottom:8px;">Navigation</div>', unsafe_allow_html=True)
+        msg = MIMEMultipart("alternative")
+        msg["Subject"] = "[5G Security] Password Reset Request"
+        msg["From"]    = smtp_user
+        msg["To"]      = to_email
+        msg.attach(MIMEText(html, "html"))
 
-        if user["role"] == "admin":
-            nav_items = [
-                ("pages/admin_dashboard.py",  "📊", "Dashboard"),
-                ("pages/admin_customers.py",  "👥", "Customers"),
-                ("pages/admin_equipment.py",  "🎥", "Equipment"),
-                ("pages/admin_tickets.py",    "🎫", "Tickets"),
-            ]
-        else:
-            nav_items = [
-                ("pages/customer_dashboard.py", "🏠", "Dashboard"),
-                ("pages/customer_equipment.py", "🎥", "My Equipment"),
-                ("pages/customer_tickets.py",   "🎫", "My Tickets"),
-                ("pages/submit_ticket.py",      "➕", "Submit Ticket"),
-            ]
+        with smtplib.SMTP(smtp_host, smtp_port) as server:
+            server.starttls()
+            server.login(smtp_user, smtp_pass)
+            server.sendmail(smtp_user, to_email, msg.as_string())
 
-        for page, emoji, label in nav_items:
-            if st.button(f"{emoji}  {label}", key=f"nav_{label}", use_container_width=True):
-                st.switch_page(page)
-
-        st.markdown("<br>", unsafe_allow_html=True)
-        st.markdown('<div style="font-family:\'Share Tech Mono\',monospace; font-size:0.65rem; letter-spacing:2px; color:#444; text-transform:uppercase; padding:4px 0; margin-bottom:8px; border-top:1px solid #1a1a1a; padding-top:12px;">Account</div>', unsafe_allow_html=True)
-        if st.button("🚪  Log Out", key="nav_logout", use_container_width=True):
-            logout()
-
-        st.markdown("""
-            <div style="position:fixed; bottom:1rem; font-family:'Share Tech Mono',monospace;
-                        font-size:0.6rem; color:#333; letter-spacing:1px;">
-                5G SECURITY © 2026 | PORTAL v1.0
-            </div>
-        """, unsafe_allow_html=True)
-
-    if user["role"] == "admin":
-        st.switch_page("pages/admin_dashboard.py")
-    else:
-        st.switch_page("pages/customer_dashboard.py")
+        return True
+    except Exception as e:
+        st.warning(f"Reset email failed: {e}")
+        return False
