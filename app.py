@@ -35,8 +35,10 @@ if "user" not in st.session_state:
 else:
     user = st.session_state["user"]
 
-    # Force password change if flagged
-    if st.session_state.get("force_change_password"):
+    # Force password change before anything else renders
+    if st.session_state.pop("force_change_password", False) or (
+        user.get("must_change_password") and user.get("role") == "customer"
+    ):
         st.switch_page("pages/change_password.py")
 
     with st.sidebar:
