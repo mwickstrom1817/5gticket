@@ -46,11 +46,10 @@ def check_login():
             </div>
         """, unsafe_allow_html=True)
 
-        if st.button("🔵  Sign in with Google", use_container_width=True, type="primary"):
-            state = secrets.token_urlsafe(16)
-            st.session_state["oauth_state"] = state
-            auth_url = get_google_auth_url()
-            st.link_button("🔵  Sign in with Google", auth_url, use_container_width=True, type="primary")
+        state = secrets.token_urlsafe(16)
+        st.session_state["oauth_state"] = state
+        auth_url = get_google_auth_url()
+        st.link_button("🔵  Sign in with Google", auth_url, use_container_width=True, type="primary")
 
     else:
         # ── Customer: email/password ───────────────────────────────────────────
