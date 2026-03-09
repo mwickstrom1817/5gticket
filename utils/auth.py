@@ -77,9 +77,8 @@ def check_login():
             if user and user["password"] != "GOOGLE_AUTH_NO_PASSWORD" and verify_password(password, user["password"]):
                 st.session_state["user"] = dict(user)
                 if user.get("must_change_password") and user.get("role") == "customer":
-                    st.switch_page("pages/change_password.py")
-                else:
-                    st.rerun()
+                    st.session_state["force_change_password"] = True
+                st.rerun()
             else:
                 st.error("Invalid credentials. Access denied.")
 
