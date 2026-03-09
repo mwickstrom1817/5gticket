@@ -47,12 +47,10 @@ def check_login():
         """, unsafe_allow_html=True)
 
         if st.button("🔵  Sign in with Google", use_container_width=True, type="primary"):
-            # Generate state token for CSRF protection
             state = secrets.token_urlsafe(16)
             st.session_state["oauth_state"] = state
             auth_url = get_google_auth_url()
-            st.markdown(f'<meta http-equiv="refresh" content="0; url={auth_url}">', unsafe_allow_html=True)
-            st.markdown(f'<a href="{auth_url}" style="color:#E8000E;">Click here if not redirected...</a>', unsafe_allow_html=True)
+            st.link_button("🔵  Sign in with Google", auth_url, use_container_width=True, type="primary")
 
     else:
         # ── Customer: email/password ───────────────────────────────────────────
