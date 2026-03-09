@@ -192,3 +192,53 @@ for t in tickets:
 
                 st.success(f"Ticket #{t['id']} updated.")
                 st.rerun()
+
+        # ── Comments ───────────────────────────────────────────────────────────
+        st.markdown("---")
+        st.markdown("""
+            <div style="font-family:'Barlow',sans-serif; font-weight:700; font-size:0.95rem;
+                        letter-spacing:1px; text-transform:uppercase; color:#f0f0f0;
+                        margin-bottom:0.75rem;">
+                💬 Comments
+            </div>
+        """, unsafe_allow_html=True)
+
+        comments = get_comments(t["id"])
+
+        if not comments:
+            st.markdown('<div style="font-family:\'DM Mono\',monospace; font-size:0.78rem; color:#444; margin-bottom:0.5rem;">No comments yet.</div>', unsafe_allow_html=True)
+        else:
+            for c in comments:
+                is_admin   = c["author_role"] == "admin"
+                bg         = "#1a1a1a" if is_admin else "#0f1a0f"
+                border_col = "#E8000E" if is_admin else "#00e676"
+                created_c  = c["created_at"].strftime("%b %d, %Y %I:%M %p") if c["created_at"] else ""
+                st.markdown(f"""
+                    <div style="background:{bg}; border:1px solid #2a2a2a;
+                                border-left:3px solid {border_col}; border-radius:2px;
+                                padding:10px 14px; margin-bottom:8px;">
+                        <div style="display:flex; justify-content:space-between; margin-bottom:4px;">
+                            <span style="font-family:'Barlow',sans-serif; font-weight:600;
+                                         font-size:0.85rem; color:{border_col};">
+                                {'🔒 ' if is_admin else '👤 '}{c['author_name']}
+                            </span>
+                            <span style="font-family:'DM Mono',monospace; font-size:0.68rem; color:#444;">
+                                {created_c}
+                            </span>
+                        </div>
+                        <div style="font-family:'DM Sans',sans-serif; font-size:0.9rem; color:#ccc;">
+                            {c['message']}
+                        </div>
+                    </div>
+                """, unsafe_allow_html=True)
+
+        with st.form(key=f"comment_form_{t['id']}"):
+            new_comment = st.text_area("Add a comment", placeholder="Type your response here...", height=80, label_visibility="collapsed")
+            if st.form_submit_button("💬 Post Comment", type="primary"):
+                if new_comment.strip():
+                    admin_name = st.session_state["user"]["name"]
+                    add_comment(t["id"], admin_name, "admin", new_comment.strip())
+                    st.success("Comment posted.")
+                    st.rerun()
+                else:
+                    st.warning("Please enter a comment.")
