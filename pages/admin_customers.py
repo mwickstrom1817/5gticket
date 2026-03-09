@@ -35,6 +35,14 @@ with tab1:
                     new_email   = st.text_input("Email",    c["email"] or "",     key=f"em_{c['id']}")
                     new_notes   = st.text_area("Notes",     c["notes"] or "",     key=f"nt_{c['id']}", height=100)
 
+                st.markdown(f"""
+                    <div style="font-family:'DM Mono',monospace; font-size:0.72rem;
+                                color:#555; margin-bottom:0.75rem;">
+                        CUSTOMER ID: <span style="color:#E8000E;">{c['id']}</span>
+                        &nbsp;—&nbsp; use this in agent config.json
+                    </div>
+                """, unsafe_allow_html=True)
+
                 if st.button("💾 Save Changes", key=f"save_{c['id']}", type="primary"):
                     execute("""
                         UPDATE customers
@@ -104,9 +112,23 @@ with tab1:
                 sys_cols = st.columns(len(system_types))
                 for i, stype in enumerate(system_types):
                     with sys_cols[i]:
-                        current    = existing.get(stype, {}).get("status", "green")
+                        sys = existing.get(stype, {})
+                        current    = sys.get("status", "green")
+                        auto       = sys.get("auto_updated", False)
+                        last_polled = sys.get("last_polled")
+
+                        label = stype.replace("_", " ").title()
+                        if auto and last_polled:
+                            polled_str = last_polled.strftime("%b %d %H:%M")
+                            st.markdown(f"""
+                                <div style="font-family:'DM Mono',monospace; font-size:0.65rem;
+                                            color:#00e676; margin-bottom:2px;">
+                                    ⚡ AUTO — {polled_str}
+                                </div>
+                            """, unsafe_allow_html=True)
+
                         new_status = st.selectbox(
-                            stype.replace("_", " ").title(),
+                            label,
                             ["green", "yellow", "red"],
                             index=["green", "yellow", "red"].index(current),
                             key=f"sys_{c['id']}_{stype}"
@@ -114,7 +136,8 @@ with tab1:
                         if st.button("Update", key=f"upd_{c['id']}_{stype}"):
                             if stype in existing:
                                 execute("""
-                                    UPDATE systems SET status=%s, updated_at=NOW()
+                                    UPDATE systems SET status=%s, updated_at=NOW(),
+                                    auto_updated=FALSE
                                     WHERE customer_id=%s AND system_type=%s
                                 """, (new_status, c["id"], stype))
                             else:
