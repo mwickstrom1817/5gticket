@@ -76,7 +76,10 @@ def check_login():
 
             if user and user["password"] != "GOOGLE_AUTH_NO_PASSWORD" and verify_password(password, user["password"]):
                 st.session_state["user"] = dict(user)
-                st.rerun()
+                if user.get("must_change_password") and user.get("role") == "customer":
+                    st.switch_page("pages/change_password.py")
+                else:
+                    st.rerun()
             else:
                 st.error("Invalid credentials. Access denied.")
 
@@ -93,13 +96,14 @@ def check_login():
 
 def create_user(name: str, email: str, password: str, role: str, customer_id=None):
     hashed = hash_password(password)
+    must_change = role == "customer"
     return execute_returning(
         """
-        INSERT INTO users (name, email, password, role, customer_id)
-        VALUES (%s, %s, %s, %s, %s)
+        INSERT INTO users (name, email, password, role, customer_id, must_change_password)
+        VALUES (%s, %s, %s, %s, %s, %s)
         RETURNING id
         """,
-        (name, email.lower().strip(), hashed, role, customer_id)
+        (name, email.lower().strip(), hashed, role, customer_id, must_change)
     )
 
 
