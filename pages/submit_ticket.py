@@ -1,7 +1,7 @@
 import streamlit as st
 from utils.db import fetchone, execute_returning
 from utils.storage import upload_ticket_photo
-from utils.email_notify import send_ticket_notification
+from utils.email_notify import send_ticket_notification, send_ticket_confirmation
 
 if "user" not in st.session_state:
     st.warning("Please log in.")
@@ -94,6 +94,7 @@ with st.form("ticket_form", clear_on_submit=True):
                 "photo_url":   photo_url,
             }
             send_ticket_notification(ticket_data, dict(customer))
+            send_ticket_confirmation(ticket_data, dict(customer), user['name'])
 
             st.success(f"✅ Ticket #{row['id']} submitted successfully! We'll be in touch soon.")
             st.balloons()
