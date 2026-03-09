@@ -50,7 +50,7 @@ def check_login():
         st.session_state["oauth_state"] = state
         auth_url = get_google_auth_url()
         st.components.v1.html(f"""
-            <a href="{auth_url}" target="_top" onclick="window.top.location.href='{auth_url}'; return false;" style="
+            <a href="{auth_url}" target="_blank" style="
                 display:block; width:100%; padding:10px;
                 background:#E8000E; color:white; text-align:center;
                 font-family:sans-serif; font-weight:600; font-size:15px;
