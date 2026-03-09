@@ -46,13 +46,18 @@ def check_login():
             </div>
         """, unsafe_allow_html=True)
 
-        if st.button("🔵  Sign in with Google", use_container_width=True, type="primary"):
-            # Generate state token for CSRF protection
-            state = secrets.token_urlsafe(16)
-            st.session_state["oauth_state"] = state
-            auth_url = get_google_auth_url()
-            st.markdown(f'<meta http-equiv="refresh" content="0; url={auth_url}">', unsafe_allow_html=True)
-            st.markdown(f'<a href="{auth_url}" style="color:#E8000E;">Click here if not redirected...</a>', unsafe_allow_html=True)
+        state = secrets.token_urlsafe(16)
+        st.session_state["oauth_state"] = state
+        auth_url = get_google_auth_url()
+        st.components.v1.html(f"""
+            <a href="{auth_url}" target="_blank" style="
+                display:block; width:100%; padding:10px;
+                background:#E8000E; color:white; text-align:center;
+                font-family:sans-serif; font-weight:600; font-size:15px;
+                border-radius:2px; text-decoration:none; cursor:pointer;">
+                🔵 Sign in with Google
+            </a>
+        """, height=50)
 
     else:
         # ── Customer: email/password ───────────────────────────────────────────
