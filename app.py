@@ -13,7 +13,6 @@ st.set_page_config(
 
 inject_global_css()
 init_db()
-st.write("DEBUG: past init")
 
 # ── Handle Google OAuth callback ───────────────────────────────────────────────
 from utils.oauth import handle_oauth_callback
