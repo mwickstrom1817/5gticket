@@ -1,180 +1,133 @@
 import streamlit as st
-from utils.auth import check_login, logout, update_password
-from utils.db import init_db, fetchone as db_fetchone
-from utils.theme import inject_global_css, render_logo
-from utils.password_reset import validate_reset_token, consume_reset_token, create_reset_token, send_reset_email
+import bcrypt
+import secrets
+from utils.db import fetchone, execute, execute_returning
 
-st.set_page_config(
-    page_title="5G Security | Customer Portal",
-    page_icon="assets/logo.png",
-    layout="wide",
-    initial_sidebar_state="expanded"
-)
 
-inject_global_css()
-init_db()
+# ── Password helpers ───────────────────────────────────────────────────────────
 
-# ── Handle Google OAuth callback ───────────────────────────────────────────────
-from utils.oauth import handle_oauth_callback
-if "code" in st.query_params:
-    if handle_oauth_callback():
-        st.switch_page("pages/admin_dashboard.py")
+def hash_password(plain: str) -> str:
+    return bcrypt.hashpw(plain.encode(), bcrypt.gensalt()).decode()
 
-# ── Handle password reset token ────────────────────────────────────────────────
-if "reset_token" in st.query_params:
-    token = st.query_params["reset_token"]
-    user_row = validate_reset_token(token)
-    col1, col2, col3 = st.columns([1, 1.2, 1])
-    with col2:
-        render_logo()
-        st.markdown("<br>", unsafe_allow_html=True)
-        if not user_row:
-            st.error("This reset link is invalid or has expired. Please request a new one.")
-        else:
-            st.markdown("### 🔒 Set New Password")
-            st.markdown(f"Setting password for **{user_row['email']}**")
-            with st.form("reset_pw_form"):
-                new_pw     = st.text_input("New Password", type="password")
-                confirm_pw = st.text_input("Confirm Password", type="password")
-                if st.form_submit_button("Set Password", type="primary"):
-                    if not new_pw or not confirm_pw:
-                        st.error("Please fill in both fields.")
-                    elif len(new_pw) < 8:
-                        st.error("Password must be at least 8 characters.")
-                    elif new_pw != confirm_pw:
-                        st.error("Passwords don't match.")
-                    else:
-                        update_password(user_row["user_id"], new_pw)
-                        consume_reset_token(token)
-                        st.success("Password updated! You can now log in.")
-                        st.query_params.clear()
-                        st.rerun()
-    st.stop()
 
-# ── Handle forgot password form ────────────────────────────────────────────────
-if "forgot_password" in st.query_params:
-    col1, col2, col3 = st.columns([1, 1.2, 1])
-    with col2:
-        render_logo()
-        st.markdown("<br>", unsafe_allow_html=True)
-        st.markdown("### Reset Your Password")
-        st.markdown("Enter your email and we'll send you a reset link.")
-        with st.form("forgot_form"):
-            reset_email = st.text_input("Email Address")
-            if st.form_submit_button("Send Reset Link", type="primary"):
-                if reset_email:
-                    user = db_fetchone(
-                        "SELECT * FROM users WHERE email = %s AND role = 'customer'",
-                        (reset_email.lower().strip(),)
-                    )
-                    if user:
-                        token = create_reset_token(user["id"])
-                        send_reset_email(user["email"], user["name"], token)
-                    # Always show success to avoid email enumeration
-                    st.success("If that email is registered, a reset link is on its way!")
+def verify_password(plain: str, hashed: str) -> bool:
+    return bcrypt.checkpw(plain.encode(), hashed.encode())
+
+
+# ── Session ────────────────────────────────────────────────────────────────────
+
+def logout():
+    st.session_state.clear()
+    st.switch_page("app.py")
+
+
+def check_login():
+    from utils.oauth import get_google_auth_url, is_admin_email
+
+    st.markdown("""
+        <div style="background:#111; border:1px solid #2a2a2a; border-top:3px solid #E8000E;
+                    border-radius:3px; padding:2rem; margin-bottom:1rem;">
+            <div style="font-family:'Share Tech Mono',monospace; font-size:0.7rem;
+                        letter-spacing:2px; color:#555; text-transform:uppercase;
+                        margin-bottom:1.5rem;">// Authentication Required</div>
+    """, unsafe_allow_html=True)
+
+    email = st.text_input("EMAIL ADDRESS")
+
+    # Detect if this is an admin email and show appropriate login
+    admin_mode = email and is_admin_email(email)
+
+    if admin_mode:
+        # ── Admin: Google OAuth ────────────────────────────────────────────────
         st.markdown("""
-            <div style="text-align:center; margin-top:1rem;">
-                <a href="/" style="font-family:'DM Mono',monospace; font-size:0.72rem;
-                   color:#555; letter-spacing:1px; text-decoration:none;">
-                   ← Back to login
+            <div style="font-family:'Share Tech Mono',monospace; font-size:0.72rem;
+                        color:#E8000E; letter-spacing:1px; margin:0.5rem 0 1rem 0;">
+                ✓ Admin account detected — sign in with Google
+            </div>
+        """, unsafe_allow_html=True)
+
+        state = secrets.token_urlsafe(16)
+        st.session_state["oauth_state"] = state
+        auth_url = get_google_auth_url()
+        st.components.v1.html(f"""
+            <a href="{auth_url}" target="_blank" style="
+                display:block; width:100%; padding:10px;
+                background:#E8000E; color:white; text-align:center;
+                font-family:sans-serif; font-weight:600; font-size:15px;
+                border-radius:2px; text-decoration:none; cursor:pointer;">
+                🔵 Sign in with Google
+            </a>
+        """, height=50)
+
+    else:
+        # ── Customer: email/password ───────────────────────────────────────────
+        password = st.text_input("PASSWORD", type="password")
+
+        st.markdown("<br>", unsafe_allow_html=True)
+        if st.button("ACCESS PORTAL", use_container_width=True, type="primary"):
+            if not email or not password:
+                st.error("Please enter your email and password.")
+                st.markdown("</div>", unsafe_allow_html=True)
+                return
+
+            user = fetchone(
+                "SELECT * FROM users WHERE email = %s", (email.lower().strip(),)
+            )
+
+            if user and user["password"] != "GOOGLE_AUTH_NO_PASSWORD" and verify_password(password, user["password"]):
+                st.session_state["user"] = dict(user)
+                if user.get("must_change_password") and user.get("role") == "customer":
+                    st.session_state["force_change_password"] = True
+                st.rerun()
+            else:
+                st.error("Invalid credentials. Access denied.")
+
+        # Forgot password link
+        st.markdown("""
+            <div style="text-align:center; margin-top:0.75rem;">
+                <a href="?forgot_password=1" style="font-family:'DM Mono',monospace;
+                   font-size:0.72rem; color:#555; letter-spacing:1px;
+                   text-decoration:none;">
+                   Forgot your password?
                 </a>
             </div>
         """, unsafe_allow_html=True)
-    st.stop()
 
-if "user" not in st.session_state:
-    col1, col2, col3 = st.columns([1, 1.2, 1])
-    with col2:
-        st.markdown("<br><br>", unsafe_allow_html=True)
-        render_logo()
-        st.markdown("""
-            <div style="font-family:'Share Tech Mono',monospace; font-size:0.72rem;
-                        letter-spacing:2px; color:#555; text-transform:uppercase;
-                        margin-bottom:2rem;">
-                Secure Client Access Portal
-            </div>
-        """, unsafe_allow_html=True)
-        check_login()
-else:
-    user = st.session_state["user"]
+    st.markdown("</div>", unsafe_allow_html=True)
+    st.markdown("""
+        <div style="font-family:'Share Tech Mono',monospace; font-size:0.65rem;
+                    color:#333; text-align:center; letter-spacing:1px; margin-top:1rem;">
+            NEED ACCESS? CONTACT 5G SECURITY TO GET SET UP
+        </div>
+    """, unsafe_allow_html=True)
 
-    # Force password change — render inline before anything else
-    if user.get("must_change_password") and user.get("role") == "customer":
-        from utils.db import execute
-        col1, col2, col3 = st.columns([1, 1.2, 1])
-        with col2:
-            render_logo()
-            st.markdown("<br>", unsafe_allow_html=True)
-            st.markdown("### 🔒 Set Your Password")
-            st.markdown("For your security, please set a new password before continuing.")
-            with st.form("force_pw_change"):
-                new_pw     = st.text_input("New Password", type="password")
-                confirm_pw = st.text_input("Confirm Password", type="password")
-                if st.form_submit_button("Set Password & Continue", type="primary"):
-                    if not new_pw or not confirm_pw:
-                        st.error("Please fill in both fields.")
-                    elif len(new_pw) < 8:
-                        st.error("Password must be at least 8 characters.")
-                    elif new_pw != confirm_pw:
-                        st.error("Passwords don't match.")
-                    else:
-                        update_password(user["id"], new_pw)
-                        execute("UPDATE users SET must_change_password = FALSE WHERE id = %s", (user["id"],))
-                        st.session_state["user"]["must_change_password"] = False
-                        st.success("Password updated! Loading your dashboard...")
-                        st.rerun()
+
+# ── Admin helpers ──────────────────────────────────────────────────────────────
+
+def create_user(name: str, email: str, password: str, role: str, customer_id=None):
+    hashed = hash_password(password)
+    must_change = role == "customer"
+    return execute_returning(
+        """
+        INSERT INTO users (name, email, password, role, customer_id, must_change_password)
+        VALUES (%s, %s, %s, %s, %s, %s)
+        RETURNING id
+        """,
+        (name, email.lower().strip(), hashed, role, customer_id, must_change)
+    )
+
+
+def update_password(user_id: int, new_password: str):
+    hashed = hash_password(new_password)
+    execute("UPDATE users SET password = %s WHERE id = %s", (hashed, user_id))
+
+
+def require_role(role: str):
+    """Call at top of any page to enforce role-based access."""
+    user = st.session_state.get("user")
+    if not user:
+        st.warning("Please log in.")
         st.stop()
-
-    with st.sidebar:
-        render_logo()
-        st.markdown(f"""
-            <div style="background:#1a1a1a; border:1px solid #2a2a2a; border-left:3px solid #E8000E;
-                        border-radius:2px; padding:10px 12px; margin-bottom:1rem;">
-                <div style="font-family:'Share Tech Mono',monospace; font-size:0.65rem;
-                            letter-spacing:2px; color:#555; text-transform:uppercase;">Logged in as</div>
-                <div style="font-family:'Rajdhani',sans-serif; font-weight:600; font-size:1rem;
-                            color:#f0f0f0; margin-top:2px;">{user['name']}</div>
-                <div style="font-family:'Share Tech Mono',monospace; font-size:0.65rem;
-                            color:#E8000E; letter-spacing:1px;">
-                    {'ADMINISTRATOR' if user['role'] == 'admin' else 'CLIENT'}
-                </div>
-            </div>
-        """, unsafe_allow_html=True)
-
-        st.markdown('<div style="font-family:\'Share Tech Mono\',monospace; font-size:0.65rem; letter-spacing:2px; color:#444; text-transform:uppercase; padding:4px 0; margin-bottom:8px;">Navigation</div>', unsafe_allow_html=True)
-
-        if user["role"] == "admin":
-            nav_items = [
-                ("pages/admin_dashboard.py",  "📊", "Dashboard"),
-                ("pages/admin_customers.py",  "👥", "Customers"),
-                ("pages/admin_equipment.py",  "🎥", "Equipment"),
-                ("pages/admin_tickets.py",    "🎫", "Tickets"),
-            ]
-        else:
-            nav_items = [
-                ("pages/customer_dashboard.py", "🏠", "Dashboard"),
-                ("pages/customer_equipment.py", "🎥", "My Equipment"),
-                ("pages/customer_tickets.py",   "🎫", "My Tickets"),
-                ("pages/submit_ticket.py",      "➕", "Submit Ticket"),
-            ]
-
-        for page, emoji, label in nav_items:
-            if st.button(f"{emoji}  {label}", key=f"nav_{label}", use_container_width=True):
-                st.switch_page(page)
-
-        st.markdown("<br>", unsafe_allow_html=True)
-        st.markdown('<div style="font-family:\'Share Tech Mono\',monospace; font-size:0.65rem; letter-spacing:2px; color:#444; text-transform:uppercase; padding:4px 0; margin-bottom:8px; border-top:1px solid #1a1a1a; padding-top:12px;">Account</div>', unsafe_allow_html=True)
-        if st.button("🚪  Log Out", key="nav_logout", use_container_width=True):
-            logout()
-
-        st.markdown("""
-            <div style="position:fixed; bottom:1rem; font-family:'Share Tech Mono',monospace;
-                        font-size:0.6rem; color:#333; letter-spacing:1px;">
-                5G SECURITY © 2026 | PORTAL v1.0
-            </div>
-        """, unsafe_allow_html=True)
-
-    if user["role"] == "admin":
-        st.switch_page("pages/admin_dashboard.py")
-    else:
-        st.switch_page("pages/customer_dashboard.py")
+    if user["role"] != role:
+        st.error("⛔ You don't have permission to view this page.")
+        st.stop()
