@@ -49,7 +49,16 @@ def check_login():
         state = secrets.token_urlsafe(16)
         st.session_state["oauth_state"] = state
         auth_url = get_google_auth_url()
-        st.link_button("🔵  Sign in with Google", auth_url, use_container_width=True, type="primary")
+        st.markdown(f"""
+            <a href="{auth_url}" target="_top" style="
+                display:block; width:100%; padding:0.6rem;
+                background:#E8000E; color:white; text-align:center;
+                font-family:'Barlow',sans-serif; font-weight:600;
+                font-size:0.95rem; letter-spacing:1px;
+                border-radius:2px; text-decoration:none;">
+                🔵 Sign in with Google
+            </a>
+        """, unsafe_allow_html=True)
 
     else:
         # ── Customer: email/password ───────────────────────────────────────────
