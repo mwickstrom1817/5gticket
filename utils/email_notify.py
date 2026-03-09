@@ -218,3 +218,100 @@ def send_welcome_email(to_email: str, contact_name: str, company: str, temp_pass
     except Exception as e:
         st.warning(f"Account created but welcome email failed: {e}")
         return False
+
+
+def send_ticket_confirmation(ticket: dict, customer: dict, contact_name: str):
+    """Send a confirmation email to the customer when they submit a ticket."""
+    try:
+        smtp_host  = st.secrets["SMTP_HOST"]
+        smtp_port  = int(st.secrets.get("SMTP_PORT", 587))
+        smtp_user  = st.secrets["SMTP_USER"]
+        smtp_pass  = st.secrets["SMTP_PASSWORD"]
+        to_email   = customer.get("email")
+        portal_url = "https://5gticket.streamlit.app"
+
+        if not to_email:
+            return False
+
+        urgency_colors = {
+            "low":       "#6c757d",
+            "normal":    "#0d6efd",
+            "high":      "#fd7e14",
+            "emergency": "#dc3545"
+        }
+        color = urgency_colors.get(ticket.get("urgency", "normal"), "#0d6efd")
+
+        html = f"""
+        <html><body style="font-family:Arial,sans-serif; color:#333;">
+          <div style="max-width:600px; margin:auto; border:1px solid #ddd; border-radius:8px; overflow:hidden;">
+            <div style="background:#1a1a1a; padding:24px; text-align:center;">
+              <h1 style="color:#E8000E; margin:0; font-size:1.8rem; letter-spacing:2px;">5G SECURITY</h1>
+              <p style="color:#888; margin:4px 0 0 0; font-size:0.85rem; letter-spacing:1px;">SUPPORT TICKET RECEIVED</p>
+            </div>
+            <div style="padding:32px;">
+              <p style="font-size:1.1rem;">Hi {contact_name},</p>
+              <p>We've received your support ticket and our team will be in touch shortly.</p>
+
+              <div style="background:#f8f8f8; border:1px solid #e0e0e0; border-left:4px solid #E8000E;
+                          border-radius:4px; padding:20px; margin:24px 0;">
+                <p style="margin:0 0 12px 0; font-weight:bold; color:#333; font-size:1rem;">
+                  Ticket #{ticket.get('id', '—')} — {ticket.get('title', '')}
+                </p>
+                <table style="width:100%; border-collapse:collapse;">
+                  <tr>
+                    <td style="padding:6px 0; font-weight:bold; width:120px; color:#555;">System:</td>
+                    <td style="padding:6px 0;">{ticket.get('system_type','').replace('_',' ').title()}</td>
+                  </tr>
+                  <tr>
+                    <td style="padding:6px 0; font-weight:bold; color:#555;">Urgency:</td>
+                    <td style="padding:6px 0;">
+                      <span style="background:{color}; color:white; padding:2px 10px;
+                                   border-radius:12px; font-size:0.82rem;">
+                        {ticket.get('urgency','normal').upper()}
+                      </span>
+                    </td>
+                  </tr>
+                  <tr>
+                    <td style="padding:6px 0; font-weight:bold; color:#555; vertical-align:top;">Description:</td>
+                    <td style="padding:6px 0;">{ticket.get('description','').replace(chr(10),'<br>')}</td>
+                  </tr>
+                </table>
+              </div>
+
+              <p style="color:#555;">
+                You can track the status of this ticket and communicate with our team through your portal.
+              </p>
+
+              <div style="text-align:center; margin-top:24px;">
+                <a href="{portal_url}" style="background:#E8000E; color:white; padding:12px 32px;
+                   border-radius:4px; text-decoration:none; font-weight:bold; font-size:1rem;
+                   letter-spacing:1px;">
+                  View Ticket in Portal →
+                </a>
+              </div>
+
+              <hr style="margin:32px 0; border:none; border-top:1px solid #eee;">
+              <p style="color:#aaa; font-size:0.8rem; text-align:center; margin:0;">
+                5G Security &nbsp;|&nbsp; {customer.get('company','')} &nbsp;|&nbsp;
+                <a href="mailto:{smtp_user}" style="color:#aaa;">Contact Us</a>
+              </p>
+            </div>
+          </div>
+        </body></html>
+        """
+
+        msg = MIMEMultipart("alternative")
+        msg["Subject"] = f"[5G Security] Ticket #{ticket.get('id','—')} Received — We're On It"
+        msg["From"]    = smtp_user
+        msg["To"]      = to_email
+        msg.attach(MIMEText(html, "html"))
+
+        with smtplib.SMTP(smtp_host, smtp_port) as server:
+            server.starttls()
+            server.login(smtp_user, smtp_pass)
+            server.sendmail(smtp_user, to_email, msg.as_string())
+
+        return True
+    except Exception as e:
+        st.warning(f"Ticket submitted but confirmation email failed: {e}")
+        return False
