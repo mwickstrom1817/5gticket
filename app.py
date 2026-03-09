@@ -35,11 +35,33 @@ if "user" not in st.session_state:
 else:
     user = st.session_state["user"]
 
-    # Force password change before anything else renders
-    if st.session_state.pop("force_change_password", False) or (
-        user.get("must_change_password") and user.get("role") == "customer"
-    ):
-        st.switch_page("pages/change_password.py")
+    # Force password change — render inline before anything else
+    if user.get("must_change_password") and user.get("role") == "customer":
+        from utils.db import execute
+        from utils.auth import update_password
+        col1, col2, col3 = st.columns([1, 1.2, 1])
+        with col2:
+            render_logo()
+            st.markdown("<br>", unsafe_allow_html=True)
+            st.markdown("### 🔒 Set Your Password")
+            st.markdown("For your security, please set a new password before continuing.")
+            with st.form("force_pw_change"):
+                new_pw     = st.text_input("New Password", type="password")
+                confirm_pw = st.text_input("Confirm Password", type="password")
+                if st.form_submit_button("Set Password & Continue", type="primary"):
+                    if not new_pw or not confirm_pw:
+                        st.error("Please fill in both fields.")
+                    elif len(new_pw) < 8:
+                        st.error("Password must be at least 8 characters.")
+                    elif new_pw != confirm_pw:
+                        st.error("Passwords don't match.")
+                    else:
+                        update_password(user["id"], new_pw)
+                        execute("UPDATE users SET must_change_password = FALSE WHERE id = %s", (user["id"],))
+                        st.session_state["user"]["must_change_password"] = False
+                        st.success("Password updated! Loading your dashboard...")
+                        st.rerun()
+        st.stop()
 
     with st.sidebar:
         render_logo()
