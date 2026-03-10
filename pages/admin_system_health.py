@@ -318,9 +318,9 @@ for c in customers:
         cam_recording = cam_recording,
         offline_block = offline_block,
         acc_color   = acc_color,
-        stor_html   = stor_html,
-        nvr_html    = nvr_html,
     )
+    # Inject stor_html and nvr_html after .format() to avoid CSS brace conflicts
+    card_html = card_html.replace("{stor_html}", stor_html).replace("{nvr_html}", nvr_html)
     st.markdown(card_html, unsafe_allow_html=True)
 
 # ── Refresh button ─────────────────────────────────────────────────────────────
