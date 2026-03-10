@@ -201,23 +201,24 @@ for c in customers:
     if stor and stor.get("total_gb", 0) > 0:
         pct       = stor["pct_used"] or 0
         bar_color = "#00e676" if pct < 70 else ("#ffab00" if pct < 85 else "#E8000E")
-        stor_html = f"""
-            <div style="margin-top:8px;">
-                <div style="display:flex; justify-content:space-between; margin-bottom:3px;">
-                    <span style="font-family:'DM Mono',monospace; font-size:0.65rem; color:#555;">STORAGE</span>
-                    <span style="font-family:'DM Mono',monospace; font-size:0.65rem; color:{bar_color};">{pct}%</span>
-                </div>
-                <div style="background:#1a1a1a; border-radius:2px; height:5px; overflow:hidden;">
-                    <div style="background:{bar_color}; width:{pct}%; height:100%; border-radius:2px;"></div>
-                </div>
-                <div style="font-family:'DM Mono',monospace; font-size:0.62rem; color:#444; margin-top:2px;">
-                    {stor['free_gb']} GB free of {stor['total_gb']} GB
-                    {"  ·  ⚠️ DISK ERROR" if has_error else ""}
-                </div>
-            </div>
-        """
+        err_txt   = "  ·  DISK ERROR" if has_error else ""
+        p         = str(pct)
+        stor_html = (
+            '<div style="margin-top:8px;">'
+            + '<div style="display:flex;justify-content:space-between;margin-bottom:3px;">'
+            + '<div style="font-family:DM Mono,monospace;font-size:0.65rem;color:#555;">STORAGE</div>'
+            + '<div style="font-family:DM Mono,monospace;font-size:0.65rem;color:' + bar_color + ';">' + p + '%</div>'
+            + '</div>'
+            + '<div style="background:#1a1a1a;border-radius:2px;height:5px;overflow:hidden;">'
+            + '<div style="background:' + bar_color + ';width:' + p + '%;height:100%;border-radius:2px;"></div>'
+            + '</div>'
+            + '<div style="font-family:DM Mono,monospace;font-size:0.62rem;color:#444;margin-top:2px;">'
+            + str(stor["free_gb"]) + " GB free of " + str(stor["total_gb"]) + " GB" + err_txt
+            + '</div>'
+            + '</div>'
+        )
     else:
-        stor_html = '<div style="font-family:\'DM Mono\',monospace; font-size:0.62rem; color:#333; margin-top:8px;">NO STORAGE DATA</div>'
+        stor_html = '<div style="font-family:DM Mono,monospace;font-size:0.62rem;color:#333;margin-top:8px;">NO STORAGE DATA</div>'
 
     # NVR
     if nvr_r:
