@@ -30,27 +30,70 @@ def init_db():
 
     cur.execute("""
         CREATE TABLE IF NOT EXISTS customers (
-            id          SERIAL PRIMARY KEY,
-            company     TEXT NOT NULL,
-            address     TEXT,
-            city        TEXT,
-            state       TEXT,
-            zip         TEXT,
-            phone       TEXT,
-            email       TEXT,
-            notes       TEXT,
+            id                 SERIAL PRIMARY KEY,
+            company            TEXT NOT NULL,
+            address            TEXT,
+            city               TEXT,
+            state              TEXT,
+            zip                TEXT,
+            phone              TEXT,
+            email              TEXT,
+            notes              TEXT,
             spectrum_system_id TEXT,
-            created_at  TIMESTAMPTZ DEFAULT NOW()
+            created_at         TIMESTAMPTZ DEFAULT NOW()
         );
     """)
 
     cur.execute("""
         CREATE TABLE IF NOT EXISTS systems (
+            id           SERIAL PRIMARY KEY,
+            customer_id  INTEGER NOT NULL REFERENCES customers(id) ON DELETE CASCADE,
+            system_type  TEXT NOT NULL,
+            status       TEXT NOT NULL DEFAULT 'green',
+            notes        TEXT,
+            auto_updated BOOLEAN DEFAULT FALSE,
+            last_polled  TIMESTAMPTZ,
+            updated_at   TIMESTAMPTZ DEFAULT NOW()
+        );
+    """)
+
+    # Agent data tables
+    cur.execute("""
+        CREATE TABLE IF NOT EXISTS camera_health (
+            id           SERIAL PRIMARY KEY,
+            customer_id  INTEGER NOT NULL,
+            camera_id    TEXT NOT NULL,
+            name         TEXT,
+            status       TEXT,
+            is_recording BOOLEAN DEFAULT FALSE,
+            model        TEXT,
+            ip           TEXT,
+            firmware     TEXT,
+            updated_at   TIMESTAMPTZ DEFAULT NOW(),
+            UNIQUE(customer_id, camera_id)
+        );
+    """)
+
+    cur.execute("""
+        CREATE TABLE IF NOT EXISTS storage_health (
             id          SERIAL PRIMARY KEY,
-            customer_id INTEGER NOT NULL REFERENCES customers(id) ON DELETE CASCADE,
-            system_type TEXT NOT NULL,   -- 'cameras' | 'access_control' | 'alarms' | 'network'
-            status      TEXT NOT NULL DEFAULT 'green',  -- 'green' | 'yellow' | 'red'
-            notes       TEXT,
+            customer_id INTEGER NOT NULL UNIQUE,
+            total_gb    NUMERIC,
+            used_gb     NUMERIC,
+            free_gb     NUMERIC,
+            pct_used    INTEGER,
+            has_error   BOOLEAN DEFAULT FALSE,
+            updated_at  TIMESTAMPTZ DEFAULT NOW()
+        );
+    """)
+
+    cur.execute("""
+        CREATE TABLE IF NOT EXISTS nvr_info (
+            id          SERIAL PRIMARY KEY,
+            customer_id INTEGER NOT NULL UNIQUE,
+            name        TEXT,
+            version     TEXT,
+            status      TEXT,
             updated_at  TIMESTAMPTZ DEFAULT NOW()
         );
     """)
