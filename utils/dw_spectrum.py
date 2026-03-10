@@ -62,39 +62,50 @@ def get_cloud_systems() -> list[dict]:
 
 def _system_get(system_id: str, path: str) -> dict | list | None:
     """
-    Try multiple relay URL formats used by NX/DW cloud.
-    Returns (response, url_used) or an error dict.
+    Try multiple relay URL formats and auth styles used by NX/DW cloud.
+    Returns parsed JSON on success, or error dict with full debug info.
     """
     token = get_cloud_token()
     if not token:
         return {"error": "no_token", "message": "Could not get auth token."}
 
-    # Try all known relay URL patterns for NX-based systems
-    relay_urls = [
-        f"https://{system_id}.relay.vmsproxy.com",
-        f"https://{system_id}.relay.nxvms.com",
-        f"{NX_CLOUD_HOST}/proxy/{system_id}",
+    attempts = [
+        # (base_url, use_query_param_auth)
+        (f"{NX_CLOUD_HOST}/proxy/{system_id}", False),
+        (f"{NX_CLOUD_HOST}/proxy/{system_id}", True),
+        (f"https://{system_id}.relay.vmsproxy.com", False),
+        (f"https://{system_id}.relay.nxvms.com", False),
     ]
 
-    last_error = None
-    for base in relay_urls:
-        url = f"{base}{path}"
+    last_error = "No attempts made"
+    for base, use_query in attempts:
+        url     = f"{base}{path}"
+        headers = {"X-Runtime-Guid": system_id}
+        params  = {}
+        if use_query:
+            params["auth"] = token
+        else:
+            headers["Authorization"] = f"Bearer {token}"
         try:
-            resp = requests.get(url, headers={
-                "Authorization": f"Bearer {token}",
-                "X-Runtime-Guid": system_id,
-            }, timeout=15)
-            if resp.status_code == 200:
-                return resp.json()
-            last_error = f"{url} → HTTP {resp.status_code}: {resp.text[:200]}"
+            resp     = requests.get(url, headers=headers, params=params,
+                                    timeout=15, allow_redirects=True)
+            raw_text = resp.text.strip()
+            auth_tag = "query" if use_query else "header"
+            if resp.status_code == 200 and raw_text:
+                try:
+                    return resp.json()
+                except Exception:
+                    last_error = f"{url} [{auth_tag}] → 200 but non-JSON: {raw_text[:400]}"
+                    continue
+            last_error = f"{url} [{auth_tag}] → HTTP {resp.status_code} | {raw_text[:400]}"
         except requests.exceptions.Timeout:
             last_error = f"{url} → Timeout"
         except requests.exceptions.ConnectionError as e:
-            last_error = f"{url} → Connection error: {str(e)[:100]}"
+            last_error = f"{url} → ConnectionError: {str(e)[:150]}"
         except Exception as e:
-            last_error = f"{url} → {str(e)[:100]}"
+            last_error = f"{url} → {str(e)[:150]}"
 
-    return {"error": "all_relays_failed", "message": last_error}
+    return {"error": "all_failed", "message": last_error}
 
 
 # ── Camera data ────────────────────────────────────────────────────────────────
