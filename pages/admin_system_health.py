@@ -247,82 +247,77 @@ for c in customers:
             '</div>'
         )
 
-    card_html = """
-        <div style="background:{site_bg}; border:1px solid #2a2a2a;
-                    border-left:4px solid {site_color}; border-radius:3px;
-                    padding:1rem 1.5rem; margin-bottom:10px;">
-            <div style="display:flex; justify-content:space-between; align-items:flex-start; margin-bottom:10px;">
-                <div>
-                    <div style="font-family:'Barlow',sans-serif; font-weight:700; font-size:1rem;
-                                letter-spacing:1.5px; text-transform:uppercase; color:#f0f0f0;">
-                        {company}
-                    </div>
-                    <div style="font-family:'DM Mono',monospace; font-size:0.62rem; color:#444; margin-top:2px;">
-                        {location} &nbsp;·&nbsp; ID #{cid}
-                    </div>
-                </div>
-                <div style="text-align:right;">
-                    <div style="font-family:'DM Mono',monospace; font-size:0.65rem;
-                                letter-spacing:2px; color:{site_color}; text-transform:uppercase;">
-                        {site_label}
-                    </div>
-                    <div style="font-family:'DM Mono',monospace; font-size:0.6rem;
-                                color:{agent_color}; margin-top:2px;">
-                        ⚡ {agent_label}
-                    </div>
-                </div>
-            </div>
-            <div style="display:flex; gap:24px; flex-wrap:wrap; align-items:center;">
-                <div style="display:flex; gap:16px; align-items:center;">
-                    <div style="text-align:center;">
-                        <div style="font-family:'Barlow',sans-serif; font-weight:700; font-size:1.4rem;
-                                    color:{cam_color}; line-height:1;">{cam_online}/{cam_total}</div>
-                        <div style="font-family:'DM Mono',monospace; font-size:0.58rem;
-                                    color:#555; letter-spacing:1px; text-transform:uppercase;">Cameras</div>
-                    </div>
-                    <div style="text-align:center;">
-                        <div style="font-family:'Barlow',sans-serif; font-weight:700; font-size:1.4rem;
-                                    color:{rec_color}; line-height:1;">{cam_recording}</div>
-                        <div style="font-family:'DM Mono',monospace; font-size:0.58rem;
-                                    color:#555; letter-spacing:1px; text-transform:uppercase;">Recording</div>
-                    </div>
-                    {offline_block}
-                </div>
-                <div style="width:1px; height:40px; background:#2a2a2a;"></div>
-                <div style="text-align:center;">
-                    <div style="width:12px; height:12px; border-radius:50%;
-                                background:{acc_color}; margin:0 auto 4px auto;
-                                box-shadow:0 0 6px {acc_color_shadow};"></div>
-                    <div style="font-family:'DM Mono',monospace; font-size:0.58rem;
-                                color:#555; letter-spacing:1px; text-transform:uppercase;">Access</div>
-                </div>
-                <div style="flex:1; min-width:200px;">
-                    {stor_html}
-                    {nvr_html}
-                </div>
-            </div>
-        </div>
-    """.format(
-        site_bg     = site_bg,
-        site_color  = site_color,
-        company     = c["company"],
-        location    = (c.get("city") or "") + (", " + c["state"] if c.get("state") else ""),
-        cid         = cid,
-        site_label  = site_label,
-        agent_color = agent_color,
-        agent_label = agent_label,
-        cam_color   = "#00e676" if cam_offline == 0 else "#E8000E",
-        cam_online  = cam_online,
-        cam_total   = cam_total,
-        rec_color   = "#E8000E" if cam_recording > 0 else "#333",
-        cam_recording = cam_recording,
-        offline_block = offline_block,
-        acc_color   = acc_color,
-        acc_color_shadow = acc_color + "44",
+    cam_color = "#00e676" if cam_offline == 0 else "#E8000E"
+    rec_color = "#E8000E" if cam_recording > 0 else "#333"
+    location  = (c.get("city") or "") + (", " + c["state"] if c.get("state") else "")
+
+    offline_block = ""
+    if cam_offline > 0:
+        offline_block = (
+            '<div style="text-align:center;">'
+            '<div style="font-family:Barlow,sans-serif;font-weight:700;font-size:1.4rem;'
+            'color:#E8000E;line-height:1;">' + str(cam_offline) + '</div>'
+            '<div style="font-family:DM Mono,monospace;font-size:0.58rem;'
+            'color:#E8000E;letter-spacing:1px;text-transform:uppercase;">Offline</div>'
+            '</div>'
+        )
+
+    card = (
+        '<div style="background:' + site_bg + ';border:1px solid #2a2a2a;'
+        'border-left:4px solid ' + site_color + ';border-radius:3px;'
+        'padding:1rem 1.5rem;margin-bottom:10px;">'
+
+        # Header
+        '<div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:10px;">'
+        '<div>'
+        '<div style="font-family:Barlow,sans-serif;font-weight:700;font-size:1rem;'
+        'letter-spacing:1.5px;text-transform:uppercase;color:#f0f0f0;">' + c["company"] + '</div>'
+        '<div style="font-family:DM Mono,monospace;font-size:0.62rem;color:#444;margin-top:2px;">'
+        + location + ' &nbsp;·&nbsp; ID #' + str(cid) + '</div>'
+        '</div>'
+        '<div style="text-align:right;">'
+        '<div style="font-family:DM Mono,monospace;font-size:0.65rem;'
+        'letter-spacing:2px;color:' + site_color + ';text-transform:uppercase;">' + site_label + '</div>'
+        '<div style="font-family:DM Mono,monospace;font-size:0.6rem;'
+        'color:' + agent_color + ';margin-top:2px;">⚡ ' + agent_label + '</div>'
+        '</div>'
+        '</div>'
+
+        # Stats row
+        '<div style="display:flex;gap:24px;flex-wrap:wrap;align-items:center;">'
+
+        '<div style="display:flex;gap:16px;align-items:center;">'
+        '<div style="text-align:center;">'
+        '<div style="font-family:Barlow,sans-serif;font-weight:700;font-size:1.4rem;'
+        'color:' + cam_color + ';line-height:1;">' + str(cam_online) + '/' + str(cam_total) + '</div>'
+        '<div style="font-family:DM Mono,monospace;font-size:0.58rem;'
+        'color:#555;letter-spacing:1px;text-transform:uppercase;">Cameras</div>'
+        '</div>'
+        '<div style="text-align:center;">'
+        '<div style="font-family:Barlow,sans-serif;font-weight:700;font-size:1.4rem;'
+        'color:' + rec_color + ';line-height:1;">' + str(cam_recording) + '</div>'
+        '<div style="font-family:DM Mono,monospace;font-size:0.58rem;'
+        'color:#555;letter-spacing:1px;text-transform:uppercase;">Recording</div>'
+        '</div>'
+        + offline_block +
+        '</div>'
+
+        '<div style="width:1px;height:40px;background:#2a2a2a;"></div>'
+
+        '<div style="text-align:center;">'
+        '<div style="width:12px;height:12px;border-radius:50%;background:' + acc_color + ';'
+        'margin:0 auto 4px auto;box-shadow:0 0 6px ' + acc_color + '44;"></div>'
+        '<div style="font-family:DM Mono,monospace;font-size:0.58rem;'
+        'color:#555;letter-spacing:1px;text-transform:uppercase;">Access</div>'
+        '</div>'
+
+        '<div style="flex:1;min-width:200px;">'
+        + stor_html + nvr_html +
+        '</div>'
+        '</div>'
+        '</div>'
     )
-    # Inject stor_html and nvr_html after .format() to avoid CSS brace conflicts
-    card_html = card_html.replace("{stor_html}", stor_html).replace("{nvr_html}", nvr_html)
-    st.markdown(card_html, unsafe_allow_html=True)
+    st.markdown(card, unsafe_allow_html=True)
 
 # ── Refresh button ─────────────────────────────────────────────────────────────
 st.markdown("<br>", unsafe_allow_html=True)
