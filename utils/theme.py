@@ -407,17 +407,17 @@ def render_sidebar(user: dict, logout_fn):
             nav_items = [
                 ("pages/admin_dashboard.py",  "📊", "Dashboard"),
                 ("pages/admin_customers.py",  "👥", "Customers"),
+                ("pages/admin_system_health.py", "📡", "System Health"),
                 ("pages/admin_equipment.py",  "🎥", "Equipment"),
                 ("pages/admin_tickets.py",    "🎫", "Tickets"),
                 ("pages/admin_settings.py",  "⚙️", "Settings"),
             ]
         else:
             nav_items = [
-                ("pages/customer_dashboard.py",     "🏠", "Dashboard"),
-                ("pages/customer_system_health.py", "📡", "System Health"),
-                ("pages/customer_equipment.py",     "🎥", "My Equipment"),
-                ("pages/customer_tickets.py",       "🎫", "My Tickets"),
-                ("pages/submit_ticket.py",          "➕", "Submit Ticket"),
+                ("pages/customer_dashboard.py", "🏠", "Dashboard"),
+                ("pages/customer_equipment.py", "🎥", "My Equipment"),
+                ("pages/customer_tickets.py",   "🎫", "My Tickets"),
+                ("pages/submit_ticket.py",      "➕", "Submit Ticket"),
             ]
 
         for page, emoji, label in nav_items:
