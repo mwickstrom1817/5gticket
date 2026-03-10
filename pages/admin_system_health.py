@@ -292,7 +292,7 @@ for c in customers:
                 <div style="text-align:center;">
                     <div style="width:12px; height:12px; border-radius:50%;
                                 background:{acc_color}; margin:0 auto 4px auto;
-                                box-shadow:0 0 6px {acc_color}44;"></div>
+                                box-shadow:0 0 6px {acc_color_shadow};"></div>
                     <div style="font-family:'DM Mono',monospace; font-size:0.58rem;
                                 color:#555; letter-spacing:1px; text-transform:uppercase;">Access</div>
                 </div>
@@ -318,6 +318,7 @@ for c in customers:
         cam_recording = cam_recording,
         offline_block = offline_block,
         acc_color   = acc_color,
+        acc_color_shadow = acc_color + "44",
     )
     # Inject stor_html and nvr_html after .format() to avoid CSS brace conflicts
     card_html = card_html.replace("{stor_html}", stor_html).replace("{nvr_html}", nvr_html)
