@@ -26,13 +26,18 @@ def get_cloud_token() -> str | None:
     """
     Authenticate to NX Cloud with 5G Security admin credentials.
     Returns a bearer token valid for all systems the account has access to.
+
+    NX Cloud requires a JSON body (not form-encoded) with these exact fields.
+    scope must be "{cloud_url} cloudSystemId=*" to get access to all systems.
     """
     try:
-        resp = requests.post(AUTH_URL, data={
-            "grant_type": "password",
-            "username":   st.secrets["DW_CLOUD_EMAIL"],
-            "password":   st.secrets["DW_CLOUD_PASSWORD"],
-            "scope":      "cloudSystemId=*",
+        resp = requests.post(AUTH_URL, json={
+            "grant_type":    "password",
+            "response_type": "token",
+            "client_id":     "3rdParty",
+            "scope":         f"{NX_CLOUD_HOST} cloudSystemId=*",
+            "username":      st.secrets["DW_CLOUD_EMAIL"],
+            "password":      st.secrets["DW_CLOUD_PASSWORD"],
         }, timeout=10)
         resp.raise_for_status()
         return resp.json().get("access_token")
