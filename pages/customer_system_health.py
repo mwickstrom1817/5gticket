@@ -73,6 +73,9 @@ with st.expander("🔧 Debug — Raw API Response (remove once working)", expand
         "storage":        storage,
         "server":         server,
         "cameras_sample": cameras[:2] if cameras else [],
+        "cam_error":      data.get("cam_err"),
+        "storage_error":  data.get("stor_err"),
+        "server_error":   data.get("srv_err"),
     })
 
 # ── Overall status banner ──────────────────────────────────────────────────────
