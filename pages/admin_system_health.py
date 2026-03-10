@@ -237,21 +237,28 @@ for c in customers:
     acc_colors = {"green": "#00e676", "yellow": "#ffab00", "red": "#E8000E"}
     acc_color  = acc_colors.get(acc_status, "#555")
 
-    st.markdown(f"""
+    # Build card HTML as a plain string to avoid nested f-string issues
+    offline_block = ""
+    if cam_offline > 0:
+        offline_block = (
+            '<div style="text-align:center;">'
+            '<div style="font-family:Barlow,sans-serif;font-weight:700;font-size:1.4rem;color:#E8000E;line-height:1;">' + str(cam_offline) + '</div>'
+            '<div style="font-family:DM Mono,monospace;font-size:0.58rem;color:#E8000E;letter-spacing:1px;text-transform:uppercase;">Offline</div>'
+            '</div>'
+        )
+
+    card_html = """
         <div style="background:{site_bg}; border:1px solid #2a2a2a;
                     border-left:4px solid {site_color}; border-radius:3px;
                     padding:1rem 1.5rem; margin-bottom:10px;">
-
-            <!-- Header row -->
             <div style="display:flex; justify-content:space-between; align-items:flex-start; margin-bottom:10px;">
                 <div>
                     <div style="font-family:'Barlow',sans-serif; font-weight:700; font-size:1rem;
                                 letter-spacing:1.5px; text-transform:uppercase; color:#f0f0f0;">
-                        {c['company']}
+                        {company}
                     </div>
                     <div style="font-family:'DM Mono',monospace; font-size:0.62rem; color:#444; margin-top:2px;">
-                        {c.get('city','') or ''}{', ' + c['state'] if c.get('state') else ''}
-                        {'  ·  ID #' + str(cid)}
+                        {location} &nbsp;·&nbsp; ID #{cid}
                     </div>
                 </div>
                 <div style="text-align:right;">
@@ -265,58 +272,56 @@ for c in customers:
                     </div>
                 </div>
             </div>
-
-            <!-- Stats row -->
             <div style="display:flex; gap:24px; flex-wrap:wrap; align-items:center;">
-
-                <!-- Cameras -->
                 <div style="display:flex; gap:16px; align-items:center;">
                     <div style="text-align:center;">
                         <div style="font-family:'Barlow',sans-serif; font-weight:700; font-size:1.4rem;
-                                    color:{'#00e676' if cam_offline == 0 else '#E8000E'}; line-height:1;">
-                            {cam_online}/{cam_total}
-                        </div>
+                                    color:{cam_color}; line-height:1;">{cam_online}/{cam_total}</div>
                         <div style="font-family:'DM Mono',monospace; font-size:0.58rem;
-                                    color:#555; letter-spacing:1px; text-transform:uppercase;">
-                            Cameras
-                        </div>
+                                    color:#555; letter-spacing:1px; text-transform:uppercase;">Cameras</div>
                     </div>
                     <div style="text-align:center;">
                         <div style="font-family:'Barlow',sans-serif; font-weight:700; font-size:1.4rem;
-                                    color:{'#E8000E' if cam_recording > 0 else '#333'}; line-height:1;">
-                            {cam_recording}
-                        </div>
+                                    color:{rec_color}; line-height:1;">{cam_recording}</div>
                         <div style="font-family:'DM Mono',monospace; font-size:0.58rem;
-                                    color:#555; letter-spacing:1px; text-transform:uppercase;">
-                            Recording
-                        </div>
+                                    color:#555; letter-spacing:1px; text-transform:uppercase;">Recording</div>
                     </div>
-                    {('<div style="text-align:center;"><div style="font-family:Barlow,sans-serif;font-weight:700;font-size:1.4rem;color:#E8000E;line-height:1;">' + str(cam_offline) + '</div><div style="font-family:DM Mono,monospace;font-size:0.58rem;color:#E8000E;letter-spacing:1px;text-transform:uppercase;">Offline</div></div>') if cam_offline > 0 else ''}
+                    {offline_block}
                 </div>
-
-                <!-- Divider -->
                 <div style="width:1px; height:40px; background:#2a2a2a;"></div>
-
-                <!-- Access Control dot -->
                 <div style="text-align:center;">
                     <div style="width:12px; height:12px; border-radius:50%;
                                 background:{acc_color}; margin:0 auto 4px auto;
                                 box-shadow:0 0 6px {acc_color}44;"></div>
                     <div style="font-family:'DM Mono',monospace; font-size:0.58rem;
-                                color:#555; letter-spacing:1px; text-transform:uppercase;">
-                        Access
-                    </div>
+                                color:#555; letter-spacing:1px; text-transform:uppercase;">Access</div>
                 </div>
-
-                <!-- Storage + NVR -->
                 <div style="flex:1; min-width:200px;">
                     {stor_html}
                     {nvr_html}
                 </div>
-
             </div>
         </div>
-    """, unsafe_allow_html=True)
+    """.format(
+        site_bg     = site_bg,
+        site_color  = site_color,
+        company     = c["company"],
+        location    = (c.get("city") or "") + (", " + c["state"] if c.get("state") else ""),
+        cid         = cid,
+        site_label  = site_label,
+        agent_color = agent_color,
+        agent_label = agent_label,
+        cam_color   = "#00e676" if cam_offline == 0 else "#E8000E",
+        cam_online  = cam_online,
+        cam_total   = cam_total,
+        rec_color   = "#E8000E" if cam_recording > 0 else "#333",
+        cam_recording = cam_recording,
+        offline_block = offline_block,
+        acc_color   = acc_color,
+        stor_html   = stor_html,
+        nvr_html    = nvr_html,
+    )
+    st.markdown(card_html, unsafe_allow_html=True)
 
 # ── Refresh button ─────────────────────────────────────────────────────────────
 st.markdown("<br>", unsafe_allow_html=True)
