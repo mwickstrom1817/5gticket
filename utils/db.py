@@ -39,6 +39,7 @@ def init_db():
             phone       TEXT,
             email       TEXT,
             notes       TEXT,
+            spectrum_system_id TEXT,
             created_at  TIMESTAMPTZ DEFAULT NOW()
         );
     """)
