@@ -291,14 +291,7 @@ for c in customers:
                             Recording
                         </div>
                     </div>
-                    {f'''<div style="text-align:center;">
-                        <div style="font-family:'Barlow',sans-serif; font-weight:700; font-size:1.4rem;
-                                    color:#E8000E; line-height:1;">{cam_offline}</div>
-                        <div style="font-family:'DM Mono',monospace; font-size:0.58rem;
-                                    color:#E8000E; letter-spacing:1px; text-transform:uppercase;">
-                            Offline
-                        </div>
-                    </div>''' if cam_offline > 0 else ''}
+                    {('<div style="text-align:center;"><div style="font-family:Barlow,sans-serif;font-weight:700;font-size:1.4rem;color:#E8000E;line-height:1;">' + str(cam_offline) + '</div><div style="font-family:DM Mono,monospace;font-size:0.58rem;color:#E8000E;letter-spacing:1px;text-transform:uppercase;">Offline</div></div>') if cam_offline > 0 else ''}
                 </div>
 
                 <!-- Divider -->
