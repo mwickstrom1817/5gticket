@@ -227,8 +227,7 @@ for c in customers:
         nvr_ver   = nvr_r.get("version", "?")
         nvr_html  = (
             '<div style="font-family:DM Mono,monospace;font-size:0.65rem;color:' + nvr_color + ';margin-top:6px;">'
-            'NVR: ' + nvr_name +
-            '<span style="color:#444;"> · v' + nvr_ver + '</span>'
+            'NVR: ' + nvr_name + ' · v' + nvr_ver +
             '</div>'
         )
     else:
