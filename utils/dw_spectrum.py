@@ -13,8 +13,9 @@ import streamlit as st
 from datetime import datetime, timezone
 
 
-# ── NX Cloud base URLs ─────────────────────────────────────────────────────────
-NX_CLOUD_HOST  = "https://nxvms.com"
+# ── DW Spectrum Cloud base URLs ────────────────────────────────────────────────
+# DW Spectrum uses their own cloud portal, not the base NX nxvms.com domain
+NX_CLOUD_HOST  = "https://dwspectrum.digital-watchdog.com"
 AUTH_URL       = f"{NX_CLOUD_HOST}/cdb/oauth2/token"
 SYSTEMS_URL    = f"{NX_CLOUD_HOST}/cdb/system/get"
 
