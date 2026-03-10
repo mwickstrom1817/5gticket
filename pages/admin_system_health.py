@@ -223,12 +223,14 @@ for c in customers:
     if nvr_r:
         nvr_ok    = nvr_r.get("status") in ("online", "running", "")
         nvr_color = "#00e676" if nvr_ok else "#E8000E"
-        nvr_html  = f"""
-            <div style="font-family:'DM Mono',monospace; font-size:0.65rem; color:{nvr_color}; margin-top:6px;">
-                NVR: {nvr_r.get('name','—')}
-                <span style="color:#444;"> · v{nvr_r.get('version','?')}</span>
-            </div>
-        """
+        nvr_name  = nvr_r.get("name", "—")
+        nvr_ver   = nvr_r.get("version", "?")
+        nvr_html  = (
+            '<div style="font-family:DM Mono,monospace;font-size:0.65rem;color:' + nvr_color + ';margin-top:6px;">'
+            'NVR: ' + nvr_name +
+            '<span style="color:#444;"> · v' + nvr_ver + '</span>'
+            '</div>'
+        )
     else:
         nvr_html = ""
 
