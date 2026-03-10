@@ -35,62 +35,20 @@ with tab1:
                     new_email   = st.text_input("Email",    c["email"] or "",     key=f"em_{c['id']}")
                     new_notes   = st.text_area("Notes",     c["notes"] or "",     key=f"nt_{c['id']}", height=100)
 
-                # ── DW Spectrum Mapping ──────────────────────────────────────────
                 st.markdown("""
                     <div style="font-family:'Share Tech Mono',monospace; font-size:0.68rem;
                                 letter-spacing:2px; color:#555; text-transform:uppercase;
                                 margin:0.75rem 0 0.4rem 0;">
-                        DW Spectrum // Live System Health
+                        5G Site Agent
                     </div>
                 """, unsafe_allow_html=True)
-
-                # Pull available systems for the dropdown
-                try:
-                    from utils.dw_spectrum import get_cloud_systems
-                    cloud_systems = get_cloud_systems()
-                    system_options = {s.get("name", s.get("id", "Unknown")): s.get("id", "") for s in cloud_systems}
-                except Exception:
-                    cloud_systems  = []
-                    system_options = {}
-
-                current_spec_id = c.get("spectrum_system_id") or ""
-
-                if system_options:
-                    # Find current selection label
-                    reverse_map    = {v: k for k, v in system_options.items()}
-                    current_label  = reverse_map.get(current_spec_id, "— Not Linked —")
-                    dropdown_keys  = ["— Not Linked —"] + list(system_options.keys())
-                    current_idx    = dropdown_keys.index(current_label) if current_label in dropdown_keys else 0
-
-                    selected_label  = st.selectbox(
-                        "Link to DW Spectrum System",
-                        dropdown_keys,
-                        index=current_idx,
-                        key=f"spec_{c['id']}",
-                        help="Select the DW Spectrum cloud system for this customer's live health dashboard."
-                    )
-                    new_spectrum_id = system_options.get(selected_label, "") if selected_label != "— Not Linked —" else ""
-                else:
-                    new_spectrum_id = st.text_input(
-                        "DW Spectrum System ID (paste from DW Cloud)",
-                        value=current_spec_id,
-                        key=f"spec_{c['id']}",
-                        placeholder="e.g. abc123de-f456-..."
-                    )
-                    if not cloud_systems:
-                        st.markdown("""
-                            <div style="font-family:'DM Mono',monospace; font-size:0.68rem; color:#555; margin-top:2px;">
-                                ⚠ Could not load DW Cloud systems — check DW_CLOUD_EMAIL / DW_CLOUD_PASSWORD secrets.
-                            </div>
-                        """, unsafe_allow_html=True)
-
-                st.markdown(f"""
-                    <div style="font-family:'DM Mono',monospace; font-size:0.72rem;
-                                color:#555; margin-bottom:0.75rem;">
-                        CUSTOMER ID: <span style="color:#E8000E;">{c['id']}</span>
-                        &nbsp;—&nbsp; use this in agent config.json
-                    </div>
-                """, unsafe_allow_html=True)
+                new_spectrum_id = st.text_input(
+                    "DW Spectrum System ID",
+                    value=c.get("spectrum_system_id") or "",
+                    key=f"spec_{c['id']}",
+                    placeholder="e.g. 72890a4e-c7fa-4ed4-8977-c49a41713d3c",
+                    help="From DW Spectrum desktop app: System Administration > General > System ID"
+                )
 
                 if st.button("💾 Save Changes", key=f"save_{c['id']}", type="primary"):
                     execute("""
