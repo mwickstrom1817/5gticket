@@ -1,9 +1,10 @@
 """
 pages/customer_system_health.py
-Live system health dashboard powered by DW Spectrum cloud API.
+Live system health dashboard — reads from DB populated by the 5G Site Agent.
 """
 
 import streamlit as st
+from datetime import datetime, timezone, timedelta
 from utils.db import fetchone
 from utils.theme import inject_global_css, render_sidebar, page_header
 from utils.auth import logout as _logout
@@ -30,53 +31,62 @@ if not customer:
 
 page_header("System Health", f"{customer['company']}  //  Live Camera & NVR Status")
 
-spectrum_system_id = customer.get("spectrum_system_id")
+# Refresh button
+_, col_refresh = st.columns([5, 1])
+with col_refresh:
+    if st.button("🔄 Refresh", use_container_width=True):
+        st.rerun()
 
-if not spectrum_system_id:
+data      = system_summary(customer_id)
+cameras   = data["cameras"]
+storage   = data["storage"]
+server    = data["server"]
+last_poll = data["last_polled"]
+
+# ── No data yet ────────────────────────────────────────────────────────────────
+if not data["has_data"]:
     st.markdown("""
         <div style="background:#111; border:1px solid #2a2a2a; border-left:3px solid #ffab00;
                     border-radius:3px; padding:2rem; margin-top:1rem; text-align:center;">
             <div style="font-size:2.5rem; margin-bottom:1rem;">📡</div>
             <div style="font-family:'Rajdhani',sans-serif; font-weight:700; font-size:1.1rem;
                         letter-spacing:2px; color:#ffab00; text-transform:uppercase; margin-bottom:0.5rem;">
-                Live Monitoring Not Yet Configured
+                Waiting for First Agent Check-In
             </div>
-            <div style="font-family:'DM Sans',sans-serif; font-size:0.9rem; color:#666; max-width:400px; margin:0 auto;">
-                Contact 5G Security to get your system linked to live monitoring.
+            <div style="font-family:'DM Sans',sans-serif; font-size:0.9rem; color:#666;
+                        max-width:420px; margin:0 auto;">
+                The site agent has been installed but hasn't reported in yet.
+                Data will appear here within 5 minutes of the agent running.
             </div>
         </div>
     """, unsafe_allow_html=True)
     st.stop()
 
-# Refresh button
-_, col_refresh = st.columns([5, 1])
-with col_refresh:
-    if st.button("🔄 Refresh", use_container_width=True):
-        st.cache_data.clear()
-        st.rerun()
+# ── Agent freshness indicator ──────────────────────────────────────────────────
+now = datetime.now(timezone.utc)
+if last_poll:
+    if last_poll.tzinfo is None:
+        last_poll = last_poll.replace(tzinfo=timezone.utc)
+    age     = now - last_poll
+    mins    = int(age.total_seconds() / 60)
+    if age < timedelta(minutes=10):
+        poll_color, poll_dot = "#00e676", "🟢"
+        poll_label = f"Updated {mins}m ago"
+    elif age < timedelta(minutes=30):
+        poll_color, poll_dot = "#ffab00", "🟡"
+        poll_label = f"Last update {mins}m ago — agent may be delayed"
+    else:
+        poll_color, poll_dot = "#E8000E", "🔴"
+        poll_label = f"Last update {mins}m ago — agent offline"
+else:
+    poll_color, poll_dot, poll_label = "#555", "⚪", "No agent data"
 
-with st.spinner("Fetching live system data..."):
-    data = system_summary(spectrum_system_id)
-
-cameras = data["cameras"]
-storage = data["storage"]
-server  = data["server"]
-
-# ── Debug expander — shows raw API data to help diagnose issues ────────────────
-with st.expander("🔧 Debug — Raw API Response (remove once working)", expanded=True):
-    st.json({
-        "spectrum_system_id": spectrum_system_id,
-        "total_cams":     data["total_cams"],
-        "online_cams":    data["online_cams"],
-        "offline_cams":   data["offline_cams"],
-        "recording":      data["recording"],
-        "storage":        storage,
-        "server":         server,
-        "cameras_sample": cameras[:2] if cameras else [],
-        "cam_error":      data.get("cam_err"),
-        "storage_error":  data.get("stor_err"),
-        "server_error":   data.get("srv_err"),
-    })
+st.markdown(f"""
+    <div style="font-family:'Share Tech Mono',monospace; font-size:0.68rem;
+                letter-spacing:1px; color:{poll_color}; margin-bottom:1.5rem;">
+        {poll_dot} {poll_label.upper()}
+    </div>
+""", unsafe_allow_html=True)
 
 # ── Overall status banner ──────────────────────────────────────────────────────
 storage_warn = storage.get("pct_used", 0) >= 85
@@ -92,10 +102,10 @@ elif data["offline_cams"] > 0 or storage.get("has_error"):
     )
 else:
     banner_bg, banner_border, banner_color, banner_icon, banner_label = (
-        "#1a1500", "#ffab00", "#ffab00", "◆", "WARNING — REVIEW RECOMMENDED"
+        "#1a1500", "#ffab00", "#ffab00", "◆", "STORAGE WARNING"
     )
 
-offline_suffix = f"&nbsp;·&nbsp; {data['offline_cams']} offline" if data["offline_cams"] > 0 else ""
+offline_note = f"&nbsp;·&nbsp; {data['offline_cams']} offline" if data["offline_cams"] > 0 else ""
 st.markdown(f"""
     <div style="background:{banner_bg}; border:1px solid {banner_border};
                 border-radius:3px; padding:1rem 1.5rem; margin-bottom:1.5rem;
@@ -108,7 +118,7 @@ st.markdown(f"""
             </div>
             <div style="font-family:'DM Sans',sans-serif; font-size:0.85rem; color:#666; margin-top:2px;">
                 {data['online_cams']} of {data['total_cams']} cameras online
-                &nbsp;·&nbsp; {data['recording']} recording {offline_suffix}
+                &nbsp;·&nbsp; {data['recording']} recording {offline_note}
             </div>
         </div>
     </div>
@@ -142,15 +152,15 @@ stat_card(c2, "🔴", "Recording", str(data["recording"]),
           "#E8000E" if data["recording"] > 0 else "#555")
 
 if storage and storage.get("total_gb", 0) > 0:
-    pct   = storage.get("pct_used", 0)
-    scol  = "#00e676" if pct < 70 else ("#ffab00" if pct < 85 else "#E8000E")
+    pct  = storage.get("pct_used", 0)
+    scol = "#00e676" if pct < 70 else ("#ffab00" if pct < 85 else "#E8000E")
     stat_card(c3, "💾", "Storage Used", f"{pct}%", scol,
               f"{storage.get('free_gb', 0)} GB free")
 else:
     stat_card(c3, "💾", "Storage", "—", "#555")
 
 if server:
-    srv_ok = server.get("status") in ("online", "running", "")
+    srv_ok = server.get("status") == "online"
     stat_card(c4, "🖥️", "NVR Status",
               "ONLINE" if srv_ok else "OFFLINE",
               "#00e676" if srv_ok else "#E8000E",
@@ -170,11 +180,7 @@ st.markdown("""
 """, unsafe_allow_html=True)
 
 if not cameras:
-    st.markdown("""
-        <div style="font-family:'Share Tech Mono',monospace; font-size:0.8rem; color:#444; padding:1rem 0;">
-            NO CAMERAS FOUND — Check NVR connection or system ID mapping.
-        </div>
-    """, unsafe_allow_html=True)
+    st.markdown('<div style="font-family:\'Share Tech Mono\',monospace; font-size:0.8rem; color:#444; padding:1rem 0;">NO CAMERA DATA</div>', unsafe_allow_html=True)
 else:
     pairs = [cameras[i:i+2] for i in range(0, len(cameras), 2)]
     for pair in pairs:
@@ -183,10 +189,9 @@ else:
             online    = cam["status"] == "online"
             cam_color = "#00e676" if online else "#E8000E"
             cam_bg    = "#0a1a0a" if online else "#1a0a0a"
-            status_icon = "🟢" if online else "🔴"
-            rec_badge = '<span style="background:#4d0005; color:#E8000E; border:1px solid #E8000E44; font-family:\'Share Tech Mono\',monospace; font-size:0.6rem; letter-spacing:1px; padding:1px 6px; border-radius:2px; margin-left:8px;">● REC</span>' if cam["is_recording"] else ""
-            model_ip  = " &nbsp;·&nbsp; ".join(filter(None, [cam.get("model", ""), cam.get("ip", "")]))
-            motion    = f'<div style="font-family:\'DM Mono\',monospace; font-size:0.68rem; color:#444; margin-top:4px;">Last motion: {cam["last_motion"]}</div>' if cam.get("last_motion") else ""
+            rec_badge = '<span style="background:#4d0005; color:#E8000E; border:1px solid #E8000E44; font-family:\'Share Tech Mono\',monospace; font-size:0.6rem; letter-spacing:1px; padding:1px 6px; border-radius:2px; margin-left:6px;">● REC</span>' if cam.get("is_recording") else ""
+            updated   = cam["updated_at"].strftime("%b %d %I:%M %p") if cam.get("updated_at") else ""
+            detail    = " &nbsp;·&nbsp; ".join(filter(None, [cam.get("model", ""), cam.get("ip", "")]))
 
             with cols[idx]:
                 st.markdown(f"""
@@ -196,16 +201,18 @@ else:
                         <div style="font-family:'Rajdhani',sans-serif; font-weight:700;
                                     font-size:0.95rem; letter-spacing:1px; color:#f0f0f0;
                                     text-transform:uppercase; margin-bottom:4px;">
-                            {status_icon} {cam['name']} {rec_badge}
+                            {'🟢' if online else '🔴'} {cam['name']} {rec_badge}
                         </div>
                         <div style="font-family:'Share Tech Mono',monospace; font-size:0.65rem;
                                     letter-spacing:2px; color:{cam_color}; margin-bottom:4px;">
                             {'ONLINE' if online else 'OFFLINE'}
                         </div>
-                        <div style="font-family:'DM Mono',monospace; font-size:0.72rem; color:#444;">
-                            {model_ip}
+                        <div style="font-family:'DM Mono',monospace; font-size:0.7rem; color:#444;">
+                            {detail}
                         </div>
-                        {motion}
+                        <div style="font-family:'DM Mono',monospace; font-size:0.65rem; color:#333; margin-top:4px;">
+                            {updated}
+                        </div>
                     </div>
                 """, unsafe_allow_html=True)
 
@@ -256,6 +263,6 @@ if storage and storage.get("total_gb", 0) > 0:
 st.markdown("""
     <div style="margin-top:2rem; font-family:'Share Tech Mono',monospace; font-size:0.65rem;
                 color:#333; letter-spacing:1px; text-align:right;">
-        LIVE DATA VIA DW SPECTRUM CLOUD  ·  AUTO-REFRESHES ON PAGE LOAD
+        DATA PROVIDED BY 5G SITE AGENT  ·  UPDATES EVERY 5 MINUTES
     </div>
 """, unsafe_allow_html=True)
