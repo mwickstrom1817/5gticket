@@ -14,6 +14,11 @@ st.set_page_config(
 inject_global_css()
 init_db()
 
+# ── Handle QR code equipment scan ─────────────────────────────────────────────
+if "equipment_id" in st.query_params:
+    st.session_state["prefill_equipment_id"] = int(st.query_params["equipment_id"])
+    st.query_params.clear()
+
 # ── Handle Google OAuth callback ───────────────────────────────────────────────
 from utils.oauth import handle_oauth_callback
 if "code" in st.query_params:
