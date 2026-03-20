@@ -22,7 +22,7 @@ with tab1:
         st.info("No customers yet. Use the 'Add New Customer' tab to get started.")
     else:
         for c in customers:
-            with st.expander(f"🏢  {c['company']}  —  {c['city'] or ''}, {c['state'] or ''}"):
+            with st.expander(f"🏢  {c['company']}  —  {c['city'] or ''}, {c['state'] or ''}  ·  ID #{c['id']}"):
                 col1, col2 = st.columns(2)
                 with col1:
                     new_company = st.text_input("Company",  c["company"],         key=f"co_{c['id']}")
@@ -35,29 +35,14 @@ with tab1:
                     new_email   = st.text_input("Email",    c["email"] or "",     key=f"em_{c['id']}")
                     new_notes   = st.text_area("Notes",     c["notes"] or "",     key=f"nt_{c['id']}", height=100)
 
-                st.markdown("""
-                    <div style="font-family:'Share Tech Mono',monospace; font-size:0.68rem;
-                                letter-spacing:2px; color:#555; text-transform:uppercase;
-                                margin:0.75rem 0 0.4rem 0;">
-                        5G Site Agent
-                    </div>
-                """, unsafe_allow_html=True)
-                new_spectrum_id = st.text_input(
-                    "DW Spectrum System ID",
-                    value=c.get("spectrum_system_id") or "",
-                    key=f"spec_{c['id']}",
-                    placeholder="e.g. 72890a4e-c7fa-4ed4-8977-c49a41713d3c",
-                    help="From DW Spectrum desktop app: System Administration > General > System ID"
-                )
-
                 if st.button("💾 Save Changes", key=f"save_{c['id']}", type="primary"):
                     execute("""
                         UPDATE customers
                         SET company=%s, address=%s, city=%s, state=%s, zip=%s,
-                            phone=%s, email=%s, notes=%s, spectrum_system_id=%s
+                            phone=%s, email=%s, notes=%s
                         WHERE id=%s
                     """, (new_company, new_address, new_city, new_state, new_zip,
-                          new_phone, new_email, new_notes, new_spectrum_id or None, c["id"]))
+                          new_phone, new_email, new_notes, c["id"]))
                     st.success("Customer updated.")
                     st.rerun()
 
